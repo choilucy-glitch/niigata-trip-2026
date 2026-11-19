@@ -1,0 +1,1 @@
+# niigata-trip-2026
