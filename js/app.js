@@ -5,6 +5,7 @@ import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signO
 import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, collection, doc, onSnapshot, addDoc, updateDoc, setDoc, deleteDoc, writeBatch } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 import { firebaseConfig } from './firebase-config.js';
 import { DAYS, CK_GROUPS, SKI_HTML, DRIVE_HTML } from './itinerary.js';
+import { renderHome } from './home.js';
 
 const fb = initializeApp(firebaseConfig);
 const auth = getAuth(fb);
@@ -85,6 +86,7 @@ const fail = (el, err) => { if (el) el.textContent = '저장하지 못했어요 
 })();
 
 /* ---------- 일정 ---------- */
+let selectDay = ()=>{};
 function renderDays(){
   const list = $('dayList');
   list.innerHTML = `<div class="daytabs" role="tablist" aria-label="날짜">${DAYS.map((D,i)=>`<button type="button" role="tab" class="dtab" id="dt${i}" data-day="${i}" data-iso="${D.iso}" aria-selected="false" aria-controls="day${i+1}"><span>DAY ${i+1}</span><b>${D.d.slice(3)}</b><small>${D.d.slice(0,2)}월 · ${D.w}</small><em class="now">오늘</em></button>`).join('')}</div>` +
@@ -105,7 +107,7 @@ function renderDays(){
      </details></li>`).join('')}
     </ol>
    </article>`).join('');
-  const show = (i, save)=>{ document.querySelectorAll('.dtab').forEach((b,j)=>b.setAttribute('aria-selected', j===i?'true':'false')); document.querySelectorAll('.day').forEach((d,j)=>{ d.hidden = j!==i; }); if (save) store.set('niigata-day', String(i)); };
+  const show = selectDay = (i, save)=>{ document.querySelectorAll('.dtab').forEach((b,j)=>b.setAttribute('aria-selected', j===i?'true':'false')); document.querySelectorAll('.day').forEach((d,j)=>{ d.hidden = j!==i; }); if (save) store.set('niigata-day', String(i)); };
   list.addEventListener('click', e=>{ const b = e.target.closest('.dtab'); if (b) show(Number(b.dataset.day), true); });
   list.addEventListener('keydown', e=>{ const b = e.target.closest('.dtab'); if (!b || !['ArrowLeft','ArrowRight'].includes(e.key)) return; const n = (Number(b.dataset.day) + (e.key==='ArrowRight'?1:3)) % 4; show(n, true); $('dt'+n).focus(); });
   const now = new Date(), today = now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
@@ -121,18 +123,27 @@ const unhideInner = host => host.querySelectorAll('[hidden]').forEach(e=>{ if (e
 unhideInner($('skiHost')); unhideInner($('driveHost'));
 
 /* ---------- 화면 전환 ---------- */
-const VIEWS = ['plan','book','money','photos','info'];
+const VIEWS = ['home','plan','book','money','photos','info'];
 function route(){
   const hsh = decodeURIComponent(location.hash.slice(1));
   let v = VIEWS.includes(hsh) ? hsh : null, target = null;
   if (!v && hsh){ const el = document.getElementById(hsh); const host = el && el.closest('[data-view]'); if (host){ v = host.closest('main > [data-view]') ? host.closest('main > [data-view]').dataset.view : host.dataset.view; target = el; } }
-  v = v || 'plan';
+  v = v || 'home';
   document.querySelectorAll('main > [data-view], #appFooter').forEach(x=>{ x.hidden = x.dataset.view !== v; });
   document.querySelectorAll('.tabbar a').forEach(a=>{ if (a.dataset.tab===v) a.setAttribute('aria-current','page'); else a.removeAttribute('aria-current'); });
   if (target){ if (target.tagName==='DETAILS') target.open = true; target.scrollIntoView({block:'start'}); }
 }
 addEventListener('hashchange', ()=>{ route(); if (VIEWS.includes(location.hash.slice(1))) scrollTo({top:0}); });
 route();
+
+/* 제목을 누르면 일정 탭 맨 위로 */
+const heroTitle = document.querySelector('.hero h1');
+heroTitle.setAttribute('role','link'); heroTitle.tabIndex = 0; heroTitle.style.cursor = 'pointer';
+const goPlanTop = ()=>{ if (location.hash === '#plan') route(); else location.hash = 'plan'; scrollTo({top:0}); };
+heroTitle.addEventListener('click', goPlanTop);
+heroTitle.addEventListener('keydown', e=>{ if (e.key==='Enter' || e.key===' '){ e.preventDefault(); goPlanTop(); } });
+/* 홈 카드에서 특정 날짜로 가는 링크 */
+document.addEventListener('click', e=>{ const a = e.target.closest('a[data-day]'); if (a) selectDay(Number(a.dataset.day), true); });
 
 /* 복사 버튼 */
 document.addEventListener('click', e=>{
@@ -175,7 +186,7 @@ $('vForm').addEventListener('submit', async e=>{
 });
 
 /* ---------- 가계부 ---------- */
-let FX = 8.33, EXP = [], mEditing = null;
+let FX = 8.33, EXP = [], mEditing = null, MONEY = null;
 const toKrw = x => x.currency === 'JPY' ? x.amount * FX : x.amount;
 const jp = krw => yen(krw / FX);
 function renderMoney(){
@@ -200,6 +211,7 @@ function renderMoney(){
   const out = []; let i=0, j=0;
   while (i<dr.length && j<cr.length){ const amt = Math.min(-dr[i].v, cr[j].v); out.push([dr[i].m, cr[j].m, amt]); dr[i].v += amt; cr[j].v -= amt; if (dr[i].v>-1) i++; if (cr[j].v<1) j++; }
   $('mSettle').innerHTML = out.length ? out.map(([a,b,v])=>`<li><b>${h(a)}</b> → <b>${h(b)}</b><span class="amt">${won(Math.round(v/10)*10)}<small>${jp(v)}</small></span></li>`).join('') : `<li class="hint">${rows.length?'모두 정산 완료 상태예요.':'지출을 입력하면 계산돼요.'}</li>`;
+  MONEY = { total, out, count: rows.length }; refreshHome();
   if (document.activeElement && document.activeElement.closest && document.activeElement.closest('.exp-edit')) return;
   const opt = (list, cur) => list.map(([v,l])=>`<option value="${h(v)}" ${v===cur?'selected':''}>${h(l)}</option>`).join('');
   const CATS = ['식비','교통·주유','숙소','스키','관광','쇼핑','항공','기타'], order = ['pre','12-10','12-11','12-12','12-13'];
@@ -257,6 +269,7 @@ $('fxForm').addEventListener('submit', async e=>{
 let PHOTOS = [];
 function renderPhotos(){
   const docs = PHOTOS.slice().sort((a,b)=>(a.createdAt||0)-(b.createdAt||0));
+  refreshHome();
   $('pStatus').textContent = docs.length ? `사진 ${docs.length}장` : '아직 사진이 없어요. 여행하면서 하나씩 올려보세요.';
   $('pList').innerHTML = ['12-10','12-11','12-12','12-13'].map((k,i)=>{
     const ps = docs.filter(p=>p.day===k); if (!ps.length) return '';
@@ -292,6 +305,7 @@ const ckDone = x => x.scope === 'each' ? MEMBERS.filter(m=>x.doneBy && x.doneBy[
 function renderChecklist(){
   const total = CK.reduce((s,x)=>s+ckUnits(x),0), done = CK.reduce((s,x)=>s+ckDone(x),0);
   $('packProgress').textContent = total ? `${done} / ${total} 완료` : '항목 없음';
+  refreshHome();
   $('ckList').innerHTML = CK_GROUPS.map(([g,label])=>{
     const items = CK.filter(x=>(x.when||'w1')===g).sort((a,b)=>(a.order||0)-(b.order||0)); if (!items.length) return '';
     return `<div class="ck-group"><h4>${label}</h4>${items.map(x=>{
@@ -424,7 +438,9 @@ onAuthStateChanged(auth, user=>{
   unsubs.push(watch(collection(db,'vjw'), $('vjwMsg'), snap=>{ VJW = {}; snap.docs.forEach(d=>{ VJW[d.id] = d.data(); }); renderVjw(); }));
   unsubs.push(onSnapshot(doc(db,'settings','fx'), s=>{ if (s.exists()){ const d = s.data(); if (d.krwPerJpy>0) FX = d.krwPerJpy; if (d.updatedAt) $('fxWhen').textContent = '· ' + new Date(d.updatedAt).toLocaleDateString('ko-KR',{month:'numeric',day:'numeric'}) + ' 기준'; } renderMoney(); }, ()=>{}));
 });
-renderMoney(); renderVjw();
+function refreshHome(){ try{ renderHome({ DAYS, CK, CK_GROUPS, MONEY, PHOTOS, MEMBERS, h, won, jp, q, IC, segs }); }catch(e){ console.error(e); } }
+renderMoney(); renderVjw(); refreshHome();
+setInterval(refreshHome, 60000);
 
 /* ---------- 오프라인용 서비스워커 ---------- */
 if ('serviceWorker' in navigator) addEventListener('load', ()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));

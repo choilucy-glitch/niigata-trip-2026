@@ -1,6 +1,6 @@
 // 오프라인에서도 일정 화면이 열리도록 화면 파일을 저장해 둬요. (데이터는 Firestore가 따로 저장해요)
-const CACHE = 'niigata-v2';
-const SHELL = ['./', 'index.html', 'css/style.css', 'css/site.css', 'js/app.js', 'js/itinerary.js', 'js/firebase-config.js', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/apple-touch-icon.png'];
+const CACHE = 'niigata-v3';
+const SHELL = ['./', 'index.html', 'css/style.css', 'css/site.css', 'js/app.js', 'js/home.js', 'js/itinerary.js', 'js/firebase-config.js', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/apple-touch-icon.png'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())); });
 self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim())); });
 self.addEventListener('fetch', e => {

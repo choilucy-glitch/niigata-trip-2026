@@ -10,3 +10,31 @@ body{margin:0}
 #gateMsg{min-height:1.4em;color:var(--t-food);font-size:13.5px;text-align:center}
 .lock{position:absolute;top:calc(14px + env(safe-area-inset-top,0px));right:max(16px,env(safe-area-inset-right,0px));font:inherit;font-size:12px;color:var(--hero-muted);background:rgba(255,255,255,.1);border:0;border-radius:999px;padding:5px 11px;cursor:pointer;z-index:2}
 .hero{padding-top:env(safe-area-inset-top,0px)}
+
+/* 홈 */
+#home{padding-top:20px}
+#homeBox{display:grid;gap:12px}
+.hcard{background:var(--surface);border-radius:var(--r);box-shadow:var(--shadow);outline:1px solid var(--card-border);padding:16px 18px;min-width:0}
+.hcard h3{font-size:12.5px;letter-spacing:.06em;color:var(--ai);font-weight:700;margin-bottom:10px}
+.hcard.hero-card h3{font-size:17px;letter-spacing:0;color:var(--ink)}
+.hbig{margin:0;font-size:18px;font-weight:700}
+.hprog{height:8px;border-radius:999px;background:var(--bg);overflow:hidden}
+.hprog span{display:block;height:100%;background:var(--ai);border-radius:999px}
+.htodo{list-style:none;margin:0;padding:0;display:grid;gap:0}
+.htodo li{display:grid;gap:1px;padding:9px 0;border-top:1px solid var(--line)}
+.htodo li b{font-weight:600;font-size:14.5px}
+.htodo li small{color:var(--muted);font-size:12px}
+.htodo .hint{font-size:11.5px;font-weight:600;color:var(--ai)}
+.hstops{display:grid;gap:8px}
+.hstop{display:grid;grid-template-columns:auto auto 1fr;gap:4px 10px;align-items:start;text-decoration:none;color:var(--ink);background:var(--bg);border-radius:12px;padding:10px 12px}
+.hstop .hs-label{grid-row:span 2;font-size:11px;font-weight:700;color:var(--c,var(--ai));background:color-mix(in srgb,var(--c,var(--ai)) 13%,transparent);border-radius:6px;padding:2px 7px;margin-top:2px;white-space:nowrap}
+.hstop .hs-label:empty{display:none}
+.hstop .time{font-family:var(--f-mono);font-size:13px;color:var(--muted);padding-top:2px;white-space:nowrap}
+.hstop .hs-ttl{min-width:0}
+.hstop .hs-ttl b{display:block;font-weight:600;font-size:14.5px;line-height:1.4}
+.hstop .hs-ttl small{display:block;color:var(--muted);font-size:12px;line-height:1.45;margin-top:1px}
+.hstop:focus-visible{outline:2px solid var(--ai)}
+.hquick{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.hquick a{display:grid;justify-items:center;gap:4px;padding:12px 4px 10px;border-radius:14px;background:var(--surface);box-shadow:var(--shadow);outline:1px solid var(--card-border);text-decoration:none;color:var(--ink);font-size:12.5px;font-weight:600}
+.hquick svg{width:22px;height:22px;color:var(--ai)}
+.hero h1[role=link]:focus-visible{outline:2px solid #fff;outline-offset:4px;border-radius:6px}
