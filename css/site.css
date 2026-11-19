@@ -1,0 +1,12 @@
+/* 독립 웹사이트 전용 추가 스타일 */
+body{margin:0}
+[hidden]{display:none!important}
+.tabbar.five{grid-template-columns:repeat(5,1fr);width:min(460px,calc(100% - 24px - env(safe-area-inset-left,0px) - env(safe-area-inset-right,0px)))}
+.gate{padding-block:28px 40px}
+.gate-card{background:var(--surface);border-radius:20px;box-shadow:var(--shadow);outline:1px solid var(--card-border);padding:24px 20px;display:grid;gap:12px;max-width:420px;margin:0 auto}
+.gate-card h2{font-size:20px;font-weight:700}
+.gate-card p{margin:0;color:var(--muted);font-size:14px}
+.gate-card .btn{justify-content:center;padding:12px;font-size:15px}
+#gateMsg{min-height:1.4em;color:var(--t-food);font-size:13.5px;text-align:center}
+.lock{position:absolute;top:calc(14px + env(safe-area-inset-top,0px));right:max(16px,env(safe-area-inset-right,0px));font:inherit;font-size:12px;color:var(--hero-muted);background:rgba(255,255,255,.1);border:0;border-radius:999px;padding:5px 11px;cursor:pointer;z-index:2}
+.hero{padding-top:env(safe-area-inset-top,0px)}

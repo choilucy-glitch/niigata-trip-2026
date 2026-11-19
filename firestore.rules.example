@@ -1,0 +1,20 @@
+// Firebase 콘솔 → Firestore Database → 규칙(Rules) 탭에 붙여넣고 "게시" 하세요.
+// 아래 이메일 4개를 일행의 구글 계정 이메일로 바꾸세요. (실제 이메일은 이 저장소에 올리지 마세요)
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isMember() {
+      return request.auth != null
+        && request.auth.token.email_verified == true
+        && request.auth.token.email.lower() in [
+          'member1@gmail.com',
+          'member2@gmail.com',
+          'member3@gmail.com',
+          'member4@gmail.com'
+        ];
+    }
+    match /{document=**} {
+      allow read, write: if isMember();
+    }
+  }
+}
