@@ -152,6 +152,21 @@ document.addEventListener('click', e=>{
   if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(c.dataset.copy).then(()=>done(true),()=>done(false)); else done(false);
 });
 
+/* ---------- 예약 정보 카드: 제목만 보이고 눌러서 펼치기 ---------- */
+const openBookings = new Set();
+function foldBookings(host){
+  host.querySelectorAll('article.bk').forEach((card, i)=>{
+    const top = card.querySelector('.bk-top'); if (!top || card.querySelector('details.bk-fold')) return;
+    const det = document.createElement('details'); det.className = 'bk-fold'; det.open = openBookings.has(i);
+    const sum = document.createElement('summary');
+    sum.appendChild(top); sum.insertAdjacentHTML('beforeend', IC.chev);
+    const body = document.createElement('div'); body.className = 'bk-body';
+    while (card.firstChild) body.appendChild(card.firstChild);
+    det.append(sum, body); card.appendChild(det);
+    det.addEventListener('toggle', ()=>{ if (det.open) openBookings.add(i); else openBookings.delete(i); });
+  });
+}
+
 /* ---------- 이름 목록이 바뀌면 다시 그리기 ---------- */
 function fillPeople(){
   for (const id of ['mPayer','pBy']) { const sel = $(id), cur = sel.value; sel.innerHTML = MEMBERS.map(m=>`<option>${h(m)}</option>`).join(''); if (MEMBERS.includes(cur)) sel.value = cur; }
@@ -461,7 +476,7 @@ onAuthStateChanged(auth, user=>{
   }));
   unsubs.push(onSnapshot(doc(db,'info','bookings'), s=>{
     $('bookingsHost').innerHTML = s.exists() ? s.data().html : '<section><p class="status">예약 정보가 아직 없어요. 준비 탭에서 데이터를 가져와 주세요.</p></section>';
-    unhideInner($('bookingsHost'));
+    unhideInner($('bookingsHost')); foldBookings($('bookingsHost'));
   }, ()=>{}));
   unsubs.push(watch(collection(db,'vouchers'), $('vStatus'), snap=>{ VOUCHERS = snap.docs.map(d=>({id:d.id, ...d.data()})); renderVouchers(); }));
   unsubs.push(watch(collection(db,'expenses'), $('mStatus'), snap=>{ EXP = snap.docs.map(d=>({id:d.id, ...d.data()})); renderMoney(); }));

@@ -45,3 +45,13 @@ body{margin:0}
 .v-edit{display:grid;gap:8px;margin-top:8px;background:var(--bg);border-radius:12px;padding:10px}
 .v-edit input,.v-edit select,.v-edit textarea{background:var(--surface)}
 .vcard .vfoot .icon-btn{margin-left:auto}
+
+/* 예약 정보 카드 접기 */
+.bk{padding:0}
+.bk-fold>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:12px;padding:16px 18px}
+.bk-fold>summary::-webkit-details-marker{display:none}
+.bk-fold>summary .bk-top{flex:1;min-width:0}
+.bk-fold>summary:focus-visible{outline:2px solid var(--ai);outline-offset:-2px;border-radius:var(--r)}
+.bk-fold[open]>summary .chev{transform:rotate(180deg)}
+.bk-body{padding:0 18px 18px}
+.bk-body>dl.kv:first-child,.bk-body>.legs:first-child{margin-top:0}
