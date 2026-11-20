@@ -152,20 +152,126 @@ document.addEventListener('click', e=>{
   if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(c.dataset.copy).then(()=>done(true),()=>done(false)); else done(false);
 });
 
-/* ---------- 예약 정보 카드: 제목만 보이고 눌러서 펼치기 ---------- */
+/* ---------- 예약 정보 카드: 접기 + 직접 고치기 ---------- */
+// 예약 정보는 info/bookings 문서의 html 한 덩어리로 저장돼요. 고칠 땐 카드 하나를 칸(항목·내용·메모)으로 풀었다가 다시 html로 만들어 저장해요.
 const openBookings = new Set();
-function foldBookings(host){
+let RAW_BOOKINGS = '', bkEditing = null, bkPending = null;
+const PLACEHOLDER = '<section><p class="status">예약 정보가 아직 없어요. 준비 탭에서 데이터를 가져와 주세요.</p></section>';
+
+function parseRaw(){ const t = document.createElement('template'); t.innerHTML = RAW_BOOKINGS || '<section id="bookings" data-view="book"><div class="sec-h"><h2>예약 정보</h2></div><div class="bk-grid"></div></section>'; return t; }
+function toText(el){
+  if (!el) return '';
+  const c = el.cloneNode(true);
+  c.querySelectorAll('button').forEach(x=>x.remove());
+  c.querySelectorAll('br').forEach(x=>x.replaceWith('\n'));
+  c.querySelectorAll('b,strong').forEach(x=>x.replaceWith('**' + x.textContent + '**'));
+  return c.textContent.split('\n').map(l=>l.replace(/\s+/g,' ').trim()).filter((l,i,arr)=>l || (i>0 && i<arr.length-1)).join('\n').trim();
+}
+const copyChip = v => `<span class="code"><span class="mono">${h(v)}</span><button class="copy" data-copy="${h(v)}">복사</button></span>`;
+function fromText(text, label=''){
+  return String(text||'').split('\n').map(line=>{
+    const t = line.trim(); if (!t) return '';
+    if (/^[A-Za-z0-9-]{6,}$/.test(t) && /\d/.test(t)) return copyChip(t);                       // 예약번호처럼 한 줄에 번호만
+    if (/전화/.test(label) && /^[\d+\-() ]{8,}$/.test(t)) return copyChip(t);
+    let html = h(t).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>');
+    // 줄 안의 예약번호·코드(숫자 섞인 8자 이상)에도 복사 버튼
+    html = html.replace(/(^|[\s:·(])([A-Za-z0-9]{8,})(?=$|[\s·,)])/g, (m, pre, tok) => /\d{5,}|[A-Za-z].*\d|\d.*[A-Za-z]/.test(tok) && !/^\d{4}년?$/.test(tok) ? pre + copyChip(tok) : m);
+    if (/주소/.test(label)) return `${html} <button class="copy" data-copy="${h(t)}">복사</button>`;
+    return html;
+  }).join('<br>');
+}
+function cardModel(card){
+  const top = card.querySelector('.bk-top');
+  const priceEl = top && top.querySelector(':scope > .mono');
+  const rows = []; const dts = card.querySelectorAll('dl.kv > dt');
+  dts.forEach(dt=>{ const dd = dt.nextElementSibling; rows.push([dt.textContent.trim(), toText(dd)]); });
+  return {
+    kind: (card.querySelector('.bk-kind')||{}).textContent || '',
+    title: (card.querySelector('.bk-top h3')||{}).textContent || '',
+    sub: (card.querySelector('.bk-top .jp')||{}).textContent || '',
+    price: priceEl ? toText(priceEl) : '',
+    rows, warns: [...card.querySelectorAll(':scope > .warn')].map(toText),
+    legs: (card.querySelector(':scope > .legs')||{}).outerHTML || '',
+    btns: (card.querySelector(':scope > .btns')||{}).outerHTML || ''
+  };
+}
+function cardHtml(m){
+  const [p1, ...pr] = m.price.split(' ');
+  return `<article class="bk">
+        <div class="bk-top"><div><div class="bk-kind">${h(m.kind)}</div><h3>${h(m.title)}</h3>${m.sub?`<div class="jp">${h(m.sub)}</div>`:''}</div>${m.price?`<div class="mono" style="font-size:18px;font-weight:500">${h(p1)}${pr.length?` <span style="font-size:12px;color:var(--muted)">${h(pr.join(' '))}</span>`:''}</div>`:''}</div>
+        <dl class="kv">${m.rows.filter(r=>r[0].trim()).map(([k,v])=>`<dt>${h(k.trim())}</dt><dd>${fromText(v,k)}</dd>`).join('')}</dl>
+        ${m.legs}${m.warns.filter(w=>w.trim()).map((w,i)=>`<div class="warn"${i===0?' style="margin-top:12px"':''}>${fromText(w)}</div>`).join('')}
+        ${m.btns}
+      </article>`;
+}
+async function saveBookings(t){
+  const html = [...t.content.childNodes].map(n=>n.outerHTML ?? n.textContent).join('');
+  await setDoc(doc(db,'info','bookings'), { html, updatedAt: Date.now() });
+}
+
+function renderBookings(){
+  const host = $('bookingsHost');
+  host.innerHTML = RAW_BOOKINGS || PLACEHOLDER;
+  unhideInner(host);
   host.querySelectorAll('article.bk').forEach((card, i)=>{
-    const top = card.querySelector('.bk-top'); if (!top || card.querySelector('details.bk-fold')) return;
-    const det = document.createElement('details'); det.className = 'bk-fold'; det.open = openBookings.has(i);
+    const top = card.querySelector('.bk-top'); if (!top) return;
+    const det = document.createElement('details'); det.className = 'bk-fold'; det.open = openBookings.has(i) || bkEditing === i;
     const sum = document.createElement('summary');
     sum.appendChild(top); sum.insertAdjacentHTML('beforeend', IC.chev);
     const body = document.createElement('div'); body.className = 'bk-body';
     while (card.firstChild) body.appendChild(card.firstChild);
+    body.insertAdjacentHTML('beforeend', `<div class="bk-edit-bar"><button type="button" class="btn" data-bk-edit="${i}">${IC.pen}이 예약 고치기</button></div>`);
     det.append(sum, body); card.appendChild(det);
     det.addEventListener('toggle', ()=>{ if (det.open) openBookings.add(i); else openBookings.delete(i); });
+    if (bkEditing === i){ body.innerHTML = bkForm(cardModel(parseRaw().content.querySelectorAll('article.bk')[i]), i); requestAnimationFrame(()=>body.querySelectorAll('textarea:not([hidden])').forEach(t=>{ t.style.height='auto'; t.style.height=t.scrollHeight+'px'; })); }
   });
+  const grid = host.querySelector('.bk-grid');
+  if (grid) grid.insertAdjacentHTML('afterend', bkEditing === 'new'
+    ? `<article class="bk" style="margin-top:12px"><div class="bk-body" style="padding-top:16px">${bkForm({kind:'',title:'',sub:'',price:'',rows:[['예약번호',''],['날짜','']],warns:[],legs:'',btns:''}, 'new')}</div></article>`
+    : `<div class="btns" style="margin-top:12px"><button type="button" class="btn" data-bk-add="1">＋ 예약 추가</button></div>`);
 }
+function bkForm(m, i){
+  const row = (k='',v='') => `<div class="bk-row"><input name="rk" value="${h(k)}" placeholder="항목 (예: 예약번호)" aria-label="항목 이름"><textarea name="rv" rows="${Math.min(5, Math.max(1, v.split('\n').length))}" placeholder="내용" aria-label="내용">${h(v)}</textarea></div>`;
+  const warn = (w='') => `<textarea name="warn" rows="${Math.min(6, Math.max(2, Math.ceil(w.length/40)))}" placeholder="주의 메모" aria-label="주의 메모">${h(w)}</textarea>`;
+  return `<form class="bk-form" data-bk-form="${i}">
+    <div class="frow2"><div class="frow"><label>종류 줄</label><input name="kind" value="${h(m.kind)}" placeholder="예: 숙소 · 트립닷컴 · 1박"></div><div class="frow"><label>금액 (선택)</label><input name="price" value="${h(m.price)}" placeholder="예: ¥34,650 현지 결제"></div></div>
+    <div class="frow"><label>이름</label><input name="title" value="${h(m.title)}" required></div>
+    <div class="frow"><label>부제 (선택)</label><input name="sub" value="${h(m.sub)}"></div>
+    <div class="frow"><label>항목 <span class="hint">· 번호만 한 줄에 쓰면 복사 버튼이 붙어요 · 항목 이름을 비우면 그 줄은 지워져요</span></label><div class="bk-rows">${m.rows.map(([k,v])=>row(k,v)).join('')}</div><button type="button" class="btn" data-bk-row="1" style="justify-self:start">＋ 줄 추가</button></div>
+    <div class="frow"><label>주의 메모 <span class="hint">· **굵게** 쓰면 굵은 글씨 · 비우면 지워져요</span></label><div class="bk-warns">${m.warns.map(warn).join('')}</div><button type="button" class="btn" data-bk-warn="1" style="justify-self:start">＋ 메모 추가</button></div>
+    <template class="row-tpl">${row()}</template><template class="warn-tpl">${warn()}</template>
+    <textarea name="legs" hidden>${h(m.legs)}</textarea><textarea name="btns" hidden>${h(m.btns)}</textarea>
+    <div class="btns"><button class="btn primary" type="submit">저장</button><button class="btn" type="button" data-bk-cancel="1">취소</button>${i==='new'?'':`<button type="button" class="del" data-bk-del="${i}" style="margin-left:auto">이 예약 삭제</button>`}</div>
+    <p class="hint bk-msg" style="margin:0"></p>
+  </form>`;
+}
+function endBkEdit(){ bkEditing = null; if (bkPending !== null){ RAW_BOOKINGS = bkPending; bkPending = null; } renderBookings(); }
+$('bookingsHost').addEventListener('click', e=>{
+  const ed = e.target.closest('[data-bk-edit]'); if (ed){ bkEditing = Number(ed.dataset.bkEdit); renderBookings(); const f = document.querySelector('.bk-form input[name=title]'); if (f) f.focus(); return; }
+  if (e.target.closest('[data-bk-add]')){ bkEditing = 'new'; renderBookings(); const f = document.querySelector('.bk-form input[name=kind]'); if (f) f.focus(); return; }
+  if (e.target.closest('[data-bk-cancel]')){ endBkEdit(); return; }
+  const f = e.target.closest('.bk-form'); if (!f) return;
+  if (e.target.closest('[data-bk-row]')){ f.querySelector('.bk-rows').insertAdjacentHTML('beforeend', f.querySelector('.row-tpl').innerHTML); return; }
+  if (e.target.closest('[data-bk-warn]')){ f.querySelector('.bk-warns').insertAdjacentHTML('beforeend', f.querySelector('.warn-tpl').innerHTML); return; }
+  const d = e.target.closest('[data-bk-del]');
+  if (d) armDelete(d, async ()=>{ const t = parseRaw(); const c = t.content.querySelectorAll('article.bk')[Number(d.dataset.bkDel)]; if (c) c.remove(); await saveBookings(t); openBookings.clear(); endBkEdit(); });
+});
+$('bookingsHost').addEventListener('input', e=>{ if (e.target.matches('.bk-form textarea')){ e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 'px'; } });
+$('bookingsHost').addEventListener('submit', async e=>{
+  e.preventDefault(); const f = e.target, i = f.dataset.bkForm; if (i === undefined) return;
+  const m = { kind:f.kind.value.trim(), title:f.title.value.trim(), sub:f.sub.value.trim(), price:f.price.value.trim(),
+    rows:[...f.querySelectorAll('.bk-row')].map(r=>[r.querySelector('[name=rk]').value, r.querySelector('[name=rv]').value]),
+    warns:[...f.querySelectorAll('textarea[name=warn]')].map(x=>x.value.trim()), legs:f.legs.value, btns:f.btns.value };
+  if (!m.title) return;
+  const msg = f.querySelector('.bk-msg'); msg.textContent = '저장 중…';
+  try{
+    const t = parseRaw(), html = cardHtml(m);
+    if (i === 'new'){ const grid = t.content.querySelector('.bk-grid'); grid.insertAdjacentHTML('beforeend', html); openBookings.add(grid.querySelectorAll('article.bk').length-1); }
+    else { const c = t.content.querySelectorAll('article.bk')[Number(i)]; c.outerHTML = html; openBookings.add(Number(i)); }
+    await saveBookings(t);
+    blurActive(); endBkEdit();
+  }catch(err){ msg.textContent = '저장하지 못했어요 (' + (err.code||'error') + ').'; }
+});
 
 /* ---------- 이름 목록이 바뀌면 다시 그리기 ---------- */
 function fillPeople(){
@@ -475,8 +581,9 @@ onAuthStateChanged(auth, user=>{
     signOut(auth);
   }));
   unsubs.push(onSnapshot(doc(db,'info','bookings'), s=>{
-    $('bookingsHost').innerHTML = s.exists() ? s.data().html : '<section><p class="status">예약 정보가 아직 없어요. 준비 탭에서 데이터를 가져와 주세요.</p></section>';
-    unhideInner($('bookingsHost')); foldBookings($('bookingsHost'));
+    const raw = s.exists() ? s.data().html : '';
+    if (bkEditing !== null){ bkPending = raw; return; }   // 고치는 중이면 끝난 뒤 반영
+    RAW_BOOKINGS = raw; renderBookings();
   }, ()=>{}));
   unsubs.push(watch(collection(db,'vouchers'), $('vStatus'), snap=>{ VOUCHERS = snap.docs.map(d=>({id:d.id, ...d.data()})); renderVouchers(); }));
   unsubs.push(watch(collection(db,'expenses'), $('mStatus'), snap=>{ EXP = snap.docs.map(d=>({id:d.id, ...d.data()})); renderMoney(); }));
