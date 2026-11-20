@@ -287,6 +287,7 @@ const KINDS = ['항공','숙소','렌터카','스키','식당','기타'];
 function renderVouchers(){
   if (document.activeElement && document.activeElement.closest && document.activeElement.closest('.v-edit')) return; // 고치는 중엔 다시 그리지 않기
   const docs = VOUCHERS.slice().sort((a,b)=>(a.order??999)-(b.order??999) || (a.createdAt||0)-(b.createdAt||0));
+  $('vCount').textContent = docs.length ? `${docs.length}개 보관 중 · 눌러서 펼치기` : '아직 없어요 · 눌러서 추가하기';
   $('vStatus').textContent = docs.length ? `${docs.length}개 보관 중 · 눌러서 크게 보기 · 연필로 설명 고치기` : '아직 보관된 바우처가 없어요. 아래에서 첫 사진을 올려보세요.';
   $('vList').innerHTML = docs.map(v=>{
     const editing = vEditing === v.id;

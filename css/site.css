@@ -65,3 +65,12 @@ body{margin:0}
 .bk-rows,.bk-warns{display:grid;gap:8px}
 .bk-row{display:grid;grid-template-columns:minmax(90px,30%) 1fr;gap:6px}
 @media (max-width:420px){.bk-row{grid-template-columns:1fr}.bk-row input{font-weight:600}}
+
+/* 바우처 보관함 접기 */
+#vouchers{padding-top:12px}
+#vFold .vgrid{margin-bottom:12px}
+.fold.v-add{background:var(--bg);box-shadow:none;outline:0;margin-bottom:0}
+.fold.v-add>summary{padding:12px 14px}
+.fold.v-add>summary b{font-size:15px}
+.fold.v-add .fold-body{padding:0 14px 14px}
+.fold.v-add input,.fold.v-add select{background:var(--surface)}

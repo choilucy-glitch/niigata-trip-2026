@@ -48,11 +48,15 @@
   <section id="days" data-view="plan"><div id="dayList"></div></section>
   <div id="bookingsHost" data-view="book"><section id="bookings-wait"><p class="status">예약 정보 불러오는 중…</p></section></div>
 <section id="vouchers" data-view="book">
-    <div class="sec-h"><h2>바우처 보관함</h2><p>예약 확인서·티켓 캡처를 한곳에</p></div>
+    <details class="fold" id="vFold">
+      <summary><span><b>바우처 보관함</b><small id="vCount">예약 확인서·티켓 캡처</small></span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></summary>
+      <div class="fold-body">
     <p class="status" id="vStatus">보관함 불러오는 중…</p>
     <div class="vgrid" id="vList"></div>
-    <form class="card form" id="vForm">
-      <h3>바우처 추가</h3>
+    <details class="fold v-add" id="vAdd">
+      <summary><span><b>＋ 바우처 추가</b><small>사진 · 이름 · 메모</small></span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></summary>
+      <div class="fold-body">
+    <form class="form" id="vForm">
       <div class="frow">
         <label for="vFile">사진 (확인서 캡처)</label>
         <input type="file" id="vFile" accept="image/*,application/pdf" required>
@@ -65,6 +69,10 @@
       <div class="frow"><label for="vNote">메모</label><input id="vNote" placeholder="예약번호, PIN, 시간 등"></div>
       <div class="btns"><button class="btn primary" type="submit" id="vSubmit">보관함에 저장</button><span class="hint" id="vMsg"></span></div>
     </form>
+      </div>
+    </details>
+      </div>
+    </details>
   </section>
 <section id="money" data-view="money">
     <div class="sec-h"><h2>가계부 · 더치페이</h2><p>4명이 함께 쓰는 장부</p></div>
