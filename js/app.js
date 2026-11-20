@@ -475,4 +475,10 @@ renderMoney(); renderVjw(); refreshHome();
 setInterval(refreshHome, 60000);
 
 /* ---------- 오프라인용 서비스워커 ---------- */
-if ('serviceWorker' in navigator) addEventListener('load', ()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+if ('serviceWorker' in navigator){
+  addEventListener('load', ()=>navigator.serviceWorker.register('sw.js', { updateViaCache:'none' }).then(r=>r.update()).catch(()=>{}));
+  // 새 버전이 설치되면 한 번 새로고침해서 바로 최신 화면으로
+  let reloaded = false;
+  const hadController = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.addEventListener('controllerchange', ()=>{ if (hadController && !reloaded){ reloaded = true; location.reload(); } });
+}
