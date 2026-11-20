@@ -420,7 +420,10 @@ onAuthStateChanged(auth, user=>{
   unsubs.push(onSnapshot(doc(db,'info','members'), s=>{
     showApp(true);
     if (s.exists() && Array.isArray(s.data().names) && s.data().names.length){ MEMBERS = s.data().names; fillPeople(); renderMoney(); renderChecklist(); renderVjw(); }
-    $('importBox').hidden = s.exists();
+    $('importBox').hidden = false;
+    $('importTitle').textContent = s.exists() ? '업데이트 파일 가져오기' : '처음 한 번: 데이터 가져오기';
+    $('importSub').textContent = s.exists() ? 'Claude가 준 업데이트(.json) 파일 넣기' : '예약 정보 · 바우처 · 체크리스트 옮기기';
+    $('importBox').classList.toggle('is-update', s.exists());
   }, err=>{
     showApp(false);
     $('gateText').textContent = `${user.email} 계정은 아직 초대되지 않았어요. 초대받은 구글 계정으로 다시 로그인해 주세요.`;

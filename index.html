@@ -156,9 +156,9 @@
       </div>
     </details>
     <details class="fold" id="importBox" hidden>
-      <summary><span><b>처음 한 번: 데이터 가져오기</b><small>예약 정보 · 바우처 · 체크리스트 옮기기</small></span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></summary>
+      <summary><span><b id="importTitle">처음 한 번: 데이터 가져오기</b><small id="importSub">예약 정보 · 바우처 · 체크리스트 옮기기</small></span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></summary>
       <div class="fold-body">
-        <p style="margin:0 0 8px">Claude가 만들어 준 <b>niigata-data.json</b> 파일을 고르면 예약 정보, 일행 이름, 바우처, 체크리스트가 데이터베이스에 들어가요. 한 명만 한 번 하면 돼요.</p>
+        <p style="margin:0 0 8px">Claude가 만들어 준 <b>.json</b> 파일을 고르면 그 안의 내용(예약 정보, 바우처, 체크리스트 등)이 데이터베이스에 들어가요. 파일에 들어 있는 항목만 새로 바뀌고 나머지는 그대로예요. 한 명만 하면 모두에게 반영돼요.</p>
         <input type="file" id="importFile" accept="application/json,.json">
         <p class="hint" id="importMsg" style="margin:8px 0 0"></p>
       </div>
