@@ -161,15 +161,44 @@ fillPeople();
 (function(){ const n = new Date(); const k = String(n.getMonth()+1).padStart(2,'0')+'-'+String(n.getDate()).padStart(2,'0'); if (n.getFullYear()===2026 && DAYLABEL[k] && k!=='pre'){ $('mDay').value=k; $('pDay').value=k; } })();
 
 /* ---------- 바우처 ---------- */
-let VOUCHERS = [];
+let VOUCHERS = [], vEditing = null;
+const KINDS = ['항공','숙소','렌터카','스키','식당','기타'];
 function renderVouchers(){
+  if (document.activeElement && document.activeElement.closest && document.activeElement.closest('.v-edit')) return; // 고치는 중엔 다시 그리지 않기
   const docs = VOUCHERS.slice().sort((a,b)=>(a.order??999)-(b.order??999) || (a.createdAt||0)-(b.createdAt||0));
-  $('vStatus').textContent = docs.length ? `${docs.length}개 보관 중 · 눌러서 크게 보기` : '아직 보관된 바우처가 없어요. 아래에서 첫 사진을 올려보세요.';
-  $('vList').innerHTML = docs.map(v=>`<article class="vcard"><button type="button" class="vthumb" data-view="${h(v.img)}" data-cap="${h(v.title)}"><img src="${h(v.img)}" alt="${h(v.title)}" loading="lazy"></button><div class="vmeta"><span class="tag ${v.kind==='숙소'?'stay':v.kind==='스키'?'ski':v.kind==='식당'?'food':'move'}" style="justify-self:start">${h(v.kind||'기타')}</span><b>${h(v.title)}</b>${v.note?`<span class="hint">${h(v.note)}</span>`:''}<div class="vfoot"><span></span><button type="button" class="del" data-del-v="${h(v.id)}">삭제</button></div></div></article>`).join('');
+  $('vStatus').textContent = docs.length ? `${docs.length}개 보관 중 · 눌러서 크게 보기 · 연필로 설명 고치기` : '아직 보관된 바우처가 없어요. 아래에서 첫 사진을 올려보세요.';
+  $('vList').innerHTML = docs.map(v=>{
+    const editing = vEditing === v.id;
+    const edit = editing ? `<form class="v-edit" data-vform="${h(v.id)}">
+        <input name="title" value="${h(v.title)}" required aria-label="이름">
+        <select name="kind" aria-label="종류">${KINDS.map(k=>`<option ${k===(v.kind||'기타')?'selected':''}>${k}</option>`).join('')}</select>
+        <textarea name="note" rows="3" aria-label="메모" placeholder="예약번호, PIN, 시간 등">${h(v.note||'')}</textarea>
+        <label class="hint" for="vimg-${h(v.id)}">사진 바꾸기 (선택)</label><input type="file" id="vimg-${h(v.id)}" name="img" accept="image/*">
+        <div class="btns" style="margin-top:0"><button class="btn primary" type="submit">저장</button><button class="btn" type="button" data-vcancel="1">취소</button><button type="button" class="del" data-del-v="${h(v.id)}" style="margin-left:auto">삭제</button></div>
+        <p class="hint v-msg" style="margin:0"></p>
+      </form>` : '';
+    return `<article class="vcard ${editing?'editing':''}"><button type="button" class="vthumb" data-img="${h(v.img)}" data-cap="${h(v.title)}"><img src="${h(v.img)}" alt="${h(v.title)}" loading="lazy"></button><div class="vmeta"><span class="tag ${v.kind==='숙소'?'stay':v.kind==='스키'?'ski':v.kind==='식당'?'food':'move'}" style="justify-self:start">${h(v.kind||'기타')}</span><b>${h(v.title)}</b>${v.note?`<span class="hint">${h(v.note)}</span>`:''}${editing?'':`<div class="vfoot"><span></span><button type="button" class="icon-btn" data-edit-v="${h(v.id)}" aria-label="${h(v.title)} 고치기">${IC.pen}</button></div>`}${edit}</div></article>`;
+  }).join('');
 }
 $('vList').addEventListener('click', e=>{
-  const v = e.target.closest('[data-view]'); if (v) return openViewer(v.dataset.view, v.dataset.cap);
-  const d = e.target.closest('[data-del-v]'); if (d) armDelete(d, ()=>deleteDoc(doc(db,'vouchers',d.dataset.delV)));
+  const v = e.target.closest('[data-img]'); if (v) return openViewer(v.dataset.img, v.dataset.cap);
+  const ed = e.target.closest('[data-edit-v]');
+  if (ed){ vEditing = ed.dataset.editV; renderVouchers(); const f = document.querySelector('.v-edit input[name=title]'); if (f){ f.focus(); f.closest('.vcard').scrollIntoView({block:'nearest'}); } return; }
+  if (e.target.closest('[data-vcancel]')){ vEditing = null; blurActive(); renderVouchers(); return; }
+  const d = e.target.closest('[data-del-v]'); if (d) armDelete(d, async ()=>{ await deleteDoc(doc(db,'vouchers',d.dataset.delV)); vEditing = null; blurActive(); renderVouchers(); });
+});
+$('vList').addEventListener('submit', async e=>{
+  e.preventDefault(); const f = e.target, id = f.dataset.vform; if (!id) return;
+  const msg = f.querySelector('.v-msg'), btn = f.querySelector('.btn.primary');
+  const data = { title:f.title.value.trim(), kind:f.kind.value, note:f.note.value.trim() };
+  if (!data.title) return;
+  btn.disabled = true;
+  try{
+    const file = f.img.files[0];
+    if (file){ msg.textContent = '사진 줄이는 중…'; const img = await toDataUrl(file, 600000, 2200); if (!img) throw { code:'image' }; data.img = img; }
+    await updateDoc(doc(db,'vouchers',id), data);
+    vEditing = null; blurActive(); renderVouchers();
+  }catch(err){ btn.disabled = false; msg.textContent = err.code==='image' ? '사진을 읽지 못했어요.' : '저장하지 못했어요 (' + (err.code||'error') + ').'; }
 });
 $('vFile').setAttribute('accept','image/*');
 $('vForm').addEventListener('submit', async e=>{
@@ -274,12 +303,12 @@ function renderPhotos(){
   $('pList').innerHTML = ['12-10','12-11','12-12','12-13'].map((k,i)=>{
     const ps = docs.filter(p=>p.day===k); if (!ps.length) return '';
     return `<div class="pday"><h3>DAY ${i+1} · ${DAYLABEL[k]} · ${h(DAYS[i].title)}</h3><div class="pgrid">${ps.map(p=>`
-      <figure class="pitem" style="margin:0"><button type="button" class="pimg" data-view="${h(p.img)}" data-cap="${h(p.caption||'')}"><img src="${h(p.img)}" alt="${h(p.caption||'여행 사진')}" loading="lazy"></button>
+      <figure class="pitem" style="margin:0"><button type="button" class="pimg" data-img="${h(p.img)}" data-cap="${h(p.caption||'')}"><img src="${h(p.img)}" alt="${h(p.caption||'여행 사진')}" loading="lazy"></button>
       <figcaption class="pcap">${p.caption?`<span>${h(p.caption)}</span>`:''}<div class="vfoot"><span class="hint">${h(p.by||'')}</span><button type="button" class="del" data-del-p="${h(p.id)}">삭제</button></div></figcaption></figure>`).join('')}</div></div>`;
   }).join('');
 }
 $('pList').addEventListener('click', e=>{
-  const v = e.target.closest('[data-view]'); if (v) return openViewer(v.dataset.view, v.dataset.cap);
+  const v = e.target.closest('[data-img]'); if (v) return openViewer(v.dataset.img, v.dataset.cap);
   const d = e.target.closest('[data-del-p]'); if (d) armDelete(d, ()=>deleteDoc(doc(db,'photos',d.dataset.delP)));
 });
 $('pForm').addEventListener('submit', async e=>{
@@ -358,12 +387,12 @@ function renderVjw(){
   $('vjwGrid').innerHTML = MEMBERS.map((m,i)=>{
     const v = VJW[vkey(i)], src = v && v.img;
     return `<div class="vjw-card"><b>${h(m)}</b>${src
-      ? `<button type="button" class="thumb" data-view="${h(src)}" data-cap="${h(m)} · Visit Japan Web QR"><img src="${h(src)}" alt="${h(m)} 입국 QR"></button><div class="vfoot"><button type="button" class="del" data-vjw-up="${i}" style="color:var(--ai)">바꾸기</button><button type="button" class="del" data-vjw-del="${i}">삭제</button></div>`
+      ? `<button type="button" class="thumb" data-img="${h(src)}" data-cap="${h(m)} · Visit Japan Web QR"><img src="${h(src)}" alt="${h(m)} 입국 QR"></button><div class="vfoot"><button type="button" class="del" data-vjw-up="${i}" style="color:var(--ai)">바꾸기</button><button type="button" class="del" data-vjw-del="${i}">삭제</button></div>`
       : `<button type="button" class="thumb empty" data-vjw-up="${i}">＋ QR 캡처 올리기</button>`}</div>`;
   }).join('');
 }
 $('vjwGrid').addEventListener('click', e=>{
-  const v = e.target.closest('[data-view]'); if (v) return openViewer(v.dataset.view, v.dataset.cap);
+  const v = e.target.closest('[data-img]'); if (v) return openViewer(v.dataset.img, v.dataset.cap);
   const u = e.target.closest('[data-vjw-up]'); if (u){ vjwTarget = Number(u.dataset.vjwUp); $('vjwFile').value=''; $('vjwFile').click(); return; }
   const d = e.target.closest('[data-vjw-del]'); if (d) armDelete(d, ()=>deleteDoc(doc(db,'vjw',vkey(Number(d.dataset.vjwDel)))));
 });

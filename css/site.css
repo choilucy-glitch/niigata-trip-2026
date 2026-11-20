@@ -38,3 +38,10 @@ body{margin:0}
 .hquick a{display:grid;justify-items:center;gap:4px;padding:12px 4px 10px;border-radius:14px;background:var(--surface);box-shadow:var(--shadow);outline:1px solid var(--card-border);text-decoration:none;color:var(--ink);font-size:12.5px;font-weight:600}
 .hquick svg{width:22px;height:22px;color:var(--ai)}
 .hero h1[role=link]:focus-visible{outline:2px solid #fff;outline-offset:4px;border-radius:6px}
+
+/* 바우처 수정 */
+.vcard.editing{grid-column:1/-1}
+.vcard.editing .vthumb{max-height:220px;aspect-ratio:auto;height:220px}
+.v-edit{display:grid;gap:8px;margin-top:8px;background:var(--bg);border-radius:12px;padding:10px}
+.v-edit input,.v-edit select,.v-edit textarea{background:var(--surface)}
+.vcard .vfoot .icon-btn{margin-left:auto}
